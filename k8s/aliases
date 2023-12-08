@@ -1,0 +1,50 @@
+function netns() {
+  nsenter -n -t `pgrep $1`
+}
+
+function pcap() {
+  cat <<EOF | kubectl apply -f -
+apiVersion: v1
+kind: Pod
+metadata:
+  name: pcap-$1
+  labels:
+    app: pcap
+spec:
+  containers:
+  - image: projects.registry.vmware.com/antrea/toolbox:1.2-1
+    imagePullPolicy: IfNotPresent
+    name: toolbox
+  nodeName: $1
+  restartPolicy: Always
+  hostNetwork: true
+EOF
+  kubectl wait --for=condition=Ready pod/pcap-$1
+  kubectl exec -it pcap-$1 -- bash
+}
+
+function unpcap() {
+  kubectl delete pod pcap-$1
+}
+
+alias kdaa="kubectl delete pods -n kube-system -l component=antrea-agent"
+alias kdac="kubectl delete pods -n kube-system -l component=antrea-controller"
+
+alias kd="kubectl -n default"
+alias kk="kubectl -n kube-system"
+alias kde="kubectl -n default exec -it"
+alias kke="kubectl -n kube-system exec -it"
+alias kdl="kubectl -n default logs"
+alias kkl="kubectl -n kube-system logs"
+alias klac="kubectl logs -n kube-system -l component=antrea-controller --tail=-1"
+alias kgn="kubectl get nodes -o wide"
+alias kgp="kubectl get pods -o wide"
+alias kgap="kubectl get -A pods -o wide"
+alias kckk="kubectl config use-context kind-kind"
+alias kcka="kubectl config use-context kubernetes-admin@kubernetes"
+alias kdc="kubectl create deploy client --image=k8s.gcr.io/e2e-test-images/agnhost:2.29"
+alias kds="kubectl create deploy server --image=registry.k8s.io/nginx:1.7.9"
+
+alias dec="docker exec -it kind-control-plane bash"
+alias dew="docker exec -it kind-worker bash"
+alias dew2="docker exec -it kind-worker2 bash"
