@@ -1,0 +1,30 @@
+# kubectl apply -f https://raw.githubusercontent.com/tnqn/toolbox/refs/heads/main/k8s/manifests/antrea-toolbox-ds.yaml
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: antrea-toolbox
+  labels:
+    app: antrea-toolbox
+spec:
+  selector:
+    matchLabels:
+      app: antrea-toolbox
+  template:
+    metadata:
+      labels:
+        app: antrea-toolbox
+    spec:
+      tolerations:
+      - key: node-role.kubernetes.io/control-plane
+        operator: Exists
+        effect: NoSchedule
+      - key: node-role.kubernetes.io/master
+        operator: Exists
+        effect: NoSchedule
+      containers:
+      - name: antrea-toolbox
+        image: antrea/toolbox:1.6-9
+      terminationGracePeriodSeconds: 30
+      hostNetwork: true
+      hostPID: true
+
