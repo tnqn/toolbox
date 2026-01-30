@@ -1,0 +1,68 @@
+# kubectl apply -f https://raw.githubusercontent.com/tnqn/toolbox/refs/heads/main/k8s/manifests/antrea-mtu-tuning-ds.yaml
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: antrea-mtu-tuning-ds
+  labels:
+    app: antrea-mtu-tuning-ds
+spec:
+  selector:
+    matchLabels:
+      app: antrea-mtu-tuning-ds
+  template:
+    metadata:
+      labels:
+        app: antrea-mtu-tuning-ds
+    spec:
+      tolerations:
+      - key: node-role.kubernetes.io/control-plane
+        operator: Exists
+        effect: NoSchedule
+      - key: node-role.kubernetes.io/master
+        operator: Exists
+        effect: NoSchedule
+      containers:
+      - name: antrea-mtu-tuning-ds
+        image: antrea/toolbox:1.6-9
+        securityContext:
+          privileged: true
+        command:
+        - /bin/sh
+        - -c
+        - |
+          set -e
+          
+          ip link set dev eth0 mtu 8900
+
+          ensure_rule() {
+            table="$1"
+            shift
+            if iptables -t "${table}" -C "$@" 2>/dev/null; then
+              echo "Rule already exists: iptables -t ${table} $*"
+            else
+              echo "Adding rule: iptables -t ${table} -I $*"
+              iptables -t "${table}" -I "$@"
+            fi
+          }
+
+          ensure_rule mangle POSTROUTING \
+            -p tcp --tcp-flags SYN,RST SYN \
+            -m set ! --match-set ANTREA-POD-IP dst \
+            -j TCPMSS --set-mss 1460
+
+          ensure_rule mangle POSTROUTING \
+            -p tcp --tcp-flags SYN,RST SYN \
+            -m set ! --match-set ANTREA-POD-IP src \
+            -j TCPMSS --set-mss 1460
+
+          ensure_rule mangle INPUT \
+            -p tcp --tcp-flags SYN,RST SYN \
+            -m set ! --match-set ANTREA-POD-IP src \
+            -j TCPMSS --set-mss 1460
+
+          echo "All rules ensured. Sleeping forever."
+          sleep infinity
+      terminationGracePeriodSeconds: 30
+      hostNetwork: true
+      hostPID: true
+

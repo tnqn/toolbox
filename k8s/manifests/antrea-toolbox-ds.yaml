@@ -24,6 +24,8 @@ spec:
       containers:
       - name: antrea-toolbox
         image: antrea/toolbox:1.6-9
+        securityContext:
+          privileged: true
       terminationGracePeriodSeconds: 30
       hostNetwork: true
       hostPID: true
