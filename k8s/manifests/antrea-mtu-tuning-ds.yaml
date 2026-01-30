@@ -1,4 +1,5 @@
 # kubectl apply -f https://raw.githubusercontent.com/tnqn/toolbox/refs/heads/main/k8s/manifests/antrea-mtu-tuning-ds.yaml
+# Note: this should only be used for testing.
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
@@ -34,6 +35,8 @@ spec:
           
           ip link set dev eth0 mtu 8900
 
+          IP_ADDR=$(ip -o -f inet addr show eth0 | awk '{print $4}')
+
           ensure_rule() {
             table="$1"
             shift
@@ -48,16 +51,19 @@ spec:
           ensure_rule mangle POSTROUTING \
             -p tcp --tcp-flags SYN,RST SYN \
             -m set ! --match-set ANTREA-POD-IP dst \
+            ! -d $IP_ADDR \
             -j TCPMSS --set-mss 1460
 
           ensure_rule mangle POSTROUTING \
             -p tcp --tcp-flags SYN,RST SYN \
             -m set ! --match-set ANTREA-POD-IP src \
+            ! -s $IP_ADDR \
             -j TCPMSS --set-mss 1460
 
           ensure_rule mangle INPUT \
             -p tcp --tcp-flags SYN,RST SYN \
             -m set ! --match-set ANTREA-POD-IP src \
+            ! -s $IP_ADDR \
             -j TCPMSS --set-mss 1460
 
           echo "All rules ensured. Sleeping forever."
@@ -65,4 +71,3 @@ spec:
       terminationGracePeriodSeconds: 30
       hostNetwork: true
       hostPID: true
-
